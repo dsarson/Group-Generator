@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Group Generator</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+  <div class="content">
+    <h1>Group Generator</h1>
+    <label for="names">Names (comma-separated):</label>
+    <textarea id="names" rows="4"></textarea>
+    <label for="groupSize">Group Size (minimum):</label>
+    <input id="groupSize" type="number" min="1" value="3">
+    <button onclick="generate()">Generate Names</button>
+    
+    <div class="container">
+      <div id="nameList" class="dropzone">Names List</div>
+      <div id="absentZone" class="dropzone">Absent</div>
+    </div>
+    
+    <button onclick="group()">Generate Groups</button>
+    <div id="groupsContainer" class="container"></div>
+  </div>
+
+  <script>
+    let absent = [], namesArray = [];
+    
+    window.onload = () => {
+      const saved = localStorage.getItem('names');
+      if (saved) {
+        document.getElementById('names').value = saved;
+        generate();
+      }
+    };
+
+    function generate() {
+      const list = document.getElementById('nameList');
+      const absentZone = document.getElementById('absentZone');
+      const nameInput = document.getElementById('names').value;
+      
+      namesArray = nameInput.split(',').map(name => name.trim()).filter(name => name && !absent.includes(name));
+      localStorage.setItem('names', nameInput);
+
+      list.innerHTML = '';
+      absentZone.innerHTML = 'Absent';
+
+      namesArray.forEach(name => addItem(list, name));
+      absent.forEach(name => addItem(absentZone, name));
+    }
+
+    function shuffle(array) {
+      for (let i = array.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [array[i], array[j]] = [array[j], array[i]];
+      }
+    }
+
+    function group() {
+      const min = parseInt(document.getElementById('groupSize').value);
+      const list = Array.from(document.getElementById('nameList').children).map(item => item.textContent);
+      
+      // Shuffle the names
+      shuffle(list);
+      
+      const groups = [];
+
+      for (let i = 0; i < list.length; i += min) {
+        groups.push(list.slice(i, i + min));
+      }
+
+      // Check if the last group has less than the minimum size
+      if (groups.length > 1 && groups[groups.length - 1].length < min) {
+        const lastGroup = groups.pop(); // Remove the last group
+        groups[groups.length - 1] = groups[groups.length - 1].concat(lastGroup); // Add to the last valid group
+      }
+
+      document.getElementById('groupsContainer').innerHTML = groups.map(group => 
+        `<div class="group">${group.map(name => `<div class="group-item">${name}</div>`).join('')}</div>`
+      ).join('');
+    }
+
+    function addItem(zone, name) {
+      const div = document.createElement('div');
+      div.textContent = name;
+      div.draggable = true;
+      div.className = 'group-item';
+      
+      div.ondragstart = e => e.dataTransfer.setData('text', e.target.textContent);
+      div.ondragend = () => absent = Array.from(document.getElementById('absentZone').children).map(n => n.textContent);
+      zone.appendChild(div);
+    }
+
+    document.querySelectorAll('.dropzone').forEach(zone => {
+      zone.ondragover = e => e.preventDefault();
+      zone.ondrop = e => {
+        const name = e.dataTransfer.getData('text');
+        if (zone.id === 'absentZone') {
+          absent.push(name);
+        } else {
+          absent = absent.filter(n => n !== name);
+        }
+        generate();
+      };
+    });
+  </script>
+</body>
+</html>
